@@ -1,7 +1,73 @@
-﻿@page "/"
+﻿@using YoutubeExplode;
+@using YoutubeExplode.Videos.Streams;
 
-<PageTitle>Home</PageTitle>
+@page "/"
+@rendermode InteractiveServer
 
-<h1>Hello, world!</h1>
+<PageTitle>Downloader</PageTitle>
 
-Welcome to your new app.
+<h3>Index</h3>
+
+
+@if (downloadInProgress)
+{
+    <span>Downloading...</span>
+}
+
+<input type="text" @bind="videoUrl" placeholder="Enter video url" />
+<button type="button" @onclick="Search">Search</button>
+
+@videoUrl
+
+@code {
+    string videoUrl = "";
+    bool downloadInProgress = false;
+    string msg = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Call the DownloadVideo method when the page loads
+        await DownloadVideo();
+    }
+
+    private async Task Search()
+    {
+        var youtube = new YoutubeClient();
+        var video = await youtube.Videos.GetAsync(videoUrl);
+        Console.WriteLine(video);
+    }
+
+    async Task DownloadVideo()
+    {
+        try
+        {
+            downloadInProgress = true;
+
+            var youtube = new YoutubeClient();
+
+            var video = await youtube.Videos.GetAsync(videoUrl);
+            var streamManifest = await youtube.Videos.Streams.GetManifestAsync(videoUrl);
+            // Get highest quality muxed stream
+            var streamInfo = streamManifest.GetMuxedStreams().GetWithHighestVideoQuality();
+            // Get the actual stream
+            var stream = await youtube.Videos.Streams.GetAsync(streamInfo);
+
+            // Download the stream to a file
+            // Specify the full path for the downloaded file
+            var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"video.{streamInfo.Container}");
+
+            // Download the stream to a file//
+            await youtube.Videos.Streams.DownloadAsync(streamInfo, filePath);
+            msg = "Downloaded";
+        }
+        catch (Exception ex)
+        {
+            msg = "Download failed";
+        }
+        finally
+        {
+            //finally
+            downloadInProgress = false;
+        }
+    }
+}
