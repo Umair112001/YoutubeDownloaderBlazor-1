@@ -1,4 +1,5 @@
 ﻿@using YoutubeExplode;
+@using YoutubeExplode.Videos
 @using YoutubeExplode.Videos.Streams;
 
 @page "/"
@@ -9,19 +10,52 @@
 <h3>Index</h3>
 
 
-@if (downloadInProgress)
+@if (loading)
 {
-    <span>Downloading...</span>
+    <span>wait...</span>
 }
+
 
 <input type="text" @bind="videoUrl" placeholder="Enter video url" />
 <button type="button" @onclick="Search">Search</button>
 
-@videoUrl
+@if(video!=null)
+{
+    <ul>
+        <li>@video.Title (@video.Duration)</li>
+        <li>@video.Description</li>
+        <li>@video.Author</li>
+        <ul>
+            @foreach(var thum in video.Thumbnails)
+            {
+                <li>
+                  @thum.Resolution : <img src="@thum.Url" />
+                </li>
+            }
+        </ul>
+    </ul>
+
+    
+}
+
+@if (streamManifest!=null)
+    {
+        <h4>Available Resolutions:</h4>
+        <ul>
+            @foreach (var streamInfo in video.VideoDetails.StreamInfo)
+            {
+                <li>@streamInfo.VideoQuality.Label: @streamInfo.Resolution</li>
+            }
+        </ul>
+    } 
+
 
 @code {
+    /* https://www.youtube.com/watch?v=rzmU8ZY5ODI */
     string videoUrl = "";
-    bool downloadInProgress = false;
+    bool loading = false;
+    Video? video = null;
+    StreamManifest? streamManifest = null;
     string msg = "";
 
     protected override async Task OnInitializedAsync()
@@ -32,16 +66,29 @@
 
     private async Task Search()
     {
-        var youtube = new YoutubeClient();
-        var video = await youtube.Videos.GetAsync(videoUrl);
-        Console.WriteLine(video);
+        try
+        {
+            loading = true;
+            var youtube = new YoutubeClient();
+            video = await youtube.Videos.GetAsync(videoUrl);
+             streamManifest = await youtube.Videos.Streams.GetManifestAsync(videoUrl);
+
+        }
+        catch (Exception ex)
+        {
+            msg = "Download to search video";
+        }
+        finally
+        {
+            loading = false;
+        }
     }
 
     async Task DownloadVideo()
     {
         try
         {
-            downloadInProgress = true;
+            loading = true;
 
             var youtube = new YoutubeClient();
 
@@ -67,7 +114,7 @@
         finally
         {
             //finally
-            downloadInProgress = false;
+            loading = false;
         }
     }
 }
