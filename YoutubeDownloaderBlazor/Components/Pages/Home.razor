@@ -19,35 +19,43 @@
 <input type="text" @bind="videoUrl" placeholder="Enter video url" />
 <button type="button" @onclick="Search">Search</button>
 
-@if(video!=null)
+@if (video != null)
 {
     <ul>
         <li>@video.Title (@video.Duration)</li>
         <li>@video.Description</li>
         <li>@video.Author</li>
         <ul>
-            @foreach(var thum in video.Thumbnails)
+            @foreach (var thum in video.Thumbnails.Where(a => a.Resolution == YoutubeExplode.Common.Resolut))
             {
                 <li>
-                  @thum.Resolution : <img src="@thum.Url" />
+                    @thum.Resolution : <img src="@thum.Url" />
                 </li>
             }
         </ul>
     </ul>
 
-    
+
 }
 
-@if (streamManifest!=null)
-    {
-        <h4>Available Resolutions:</h4>
-        <ul>
-            @foreach (var streamInfo in video.VideoDetails.StreamInfo)
-            {
-                <li>@streamInfo.VideoQuality.Label: @streamInfo.Resolution</li>
-            }
-        </ul>
-    } 
+@if (streamManifest != null)
+{
+    <h4>Muxed Streams:</h4>
+    <ul>
+        @foreach (var sinfo in streamManifest.GetMuxedStreams())
+        {
+            <li>@sinfo.Bitrate</li>
+        }
+    </ul>
+
+    <h4>Streams:</h4>
+    <ul>
+        @foreach (var stream in streamManifest.Streams)
+        {
+            <li>@stream.Bitrate</li>
+        }
+    </ul>
+}
 
 
 @code {
@@ -71,7 +79,7 @@
             loading = true;
             var youtube = new YoutubeClient();
             video = await youtube.Videos.GetAsync(videoUrl);
-             streamManifest = await youtube.Videos.Streams.GetManifestAsync(videoUrl);
+            streamManifest = await youtube.Videos.Streams.GetManifestAsync(videoUrl);
 
         }
         catch (Exception ex)
