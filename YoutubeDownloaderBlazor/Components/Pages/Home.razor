@@ -22,17 +22,10 @@
 @if (video != null)
 {
     <ul>
-        <li>@video.Title (@video.Duration)</li>
-        <li>@video.Description</li>
-        <li>@video.Author</li>
-        <ul>
-            @foreach (var thum in video.Thumbnails.Where(a => a.Resolution == YoutubeExplode.Common.Resolut))
-            {
-                <li>
-                    @thum.Resolution : <img src="@thum.Url" />
-                </li>
-            }
-        </ul>
+        <li>@video.Title (@video.Duration | @video.Author)</li>
+        <li><img src="@video.Thumbnails?.LastOrDefault()?.Url" style="width:300px;height:200px" /></li>
+        <li>Views: @video.Engagement.ViewCount</li>
+        <li>Likes: @video.Engagement.LikeCount</li>
     </ul>
 
 
@@ -42,35 +35,44 @@
 {
     <h4>Muxed Streams:</h4>
     <ul>
-        @foreach (var sinfo in streamManifest.GetMuxedStreams())
+        @foreach (var stream in streamManifest.GetMuxedStreams())
         {
-            <li>@sinfo.Bitrate</li>
+            <li>
+                @stream.Container.Name | @stream,.VideoQuality.Label |   @(Math.Round(stream.Size.MegaBytes,2)) MB
+                <button @onclick="()=>DownloadVideo(stream)">Download</button>
+
+            </li>
         }
     </ul>
 
-    <h4>Streams:</h4>
-    <ul>
-        @foreach (var stream in streamManifest.Streams)
+
+    <h4>Audio Only:</h4>
+     <ul>
+        @foreach (var stream in streamManifest.GetAudioStreams())
         {
-            <li>@stream.Bitrate</li>
+            <li>
+                @stream.Container.Name
+                |@(Math.Ceiling(stream.Bitrate.KiloBitsPerSecond)) kbps
+               | @(Math.Round(stream.Size.MegaBytes,2)) MB
+                | <button @onclick="()=>DownloadVideo(stream)">Download</button>
+                </li>
         }
     </ul>
 }
 
 
 @code {
-    /* https://www.youtube.com/watch?v=rzmU8ZY5ODI */
-    string videoUrl = "";
+    /* https://www.youtube.com/watch?v=8yP6OE4jDEw */
+    string videoUrl = "https://www.youtube.com/watch?v=8yP6OE4jDEw";
     bool loading = false;
     Video? video = null;
     StreamManifest? streamManifest = null;
     string msg = "";
 
-    protected override async Task OnInitializedAsync()
-    {
-        // Call the DownloadVideo method when the page loads
-        await DownloadVideo();
-    }
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     // Call the DownloadVideo method when the page loads
+    // }
 
     private async Task Search()
     {
@@ -80,7 +82,6 @@
             var youtube = new YoutubeClient();
             video = await youtube.Videos.GetAsync(videoUrl);
             streamManifest = await youtube.Videos.Streams.GetManifestAsync(videoUrl);
-
         }
         catch (Exception ex)
         {
@@ -92,24 +93,22 @@
         }
     }
 
-    async Task DownloadVideo()
+    async Task DownloadVideo(IStreamInfo streamInfo)
     {
         try
         {
             loading = true;
 
             var youtube = new YoutubeClient();
-
-            var video = await youtube.Videos.GetAsync(videoUrl);
             var streamManifest = await youtube.Videos.Streams.GetManifestAsync(videoUrl);
-            // Get highest quality muxed stream
-            var streamInfo = streamManifest.GetMuxedStreams().GetWithHighestVideoQuality();
             // Get the actual stream
             var stream = await youtube.Videos.Streams.GetAsync(streamInfo);
 
             // Download the stream to a file
-            // Specify the full path for the downloaded file
-            var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"video.{streamInfo.Container}");
+            string invalidChars = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
+             string filename = new string(video?.Title.Select(c => invalidChars.Contains(c) ? '_' : c).ToArray());
+            string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"{filename}.{streamInfo.Container.Name}");
+            // var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"video.{streamInfo.Container}");
 
             // Download the stream to a file//
             await youtube.Videos.Streams.DownloadAsync(streamInfo, filePath);
