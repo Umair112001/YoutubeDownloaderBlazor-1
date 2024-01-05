@@ -5,9 +5,24 @@
 @page "/"
 @rendermode InteractiveServer
 
-<PageTitle>Downloader</PageTitle>
+<PageTitle>📺 Youtube Downloader</PageTitle>
 
-<h3>Index</h3>
+<style>
+    .header {
+        padding: 10px 0px;
+    }
+
+    .searchBox {
+        width: 100%;
+        display: flex;
+        gap: 20px;
+        padding: 5px 10px;
+    }
+</style>
+
+<div class="header">
+<MudText Typo="Typo.h5">Youtube Video Downloader</MudText>
+</div>
 
 
 @if (loading)
@@ -15,9 +30,12 @@
     <span>wait...</span>
 }
 
-
-<input type="text" @bind="videoUrl" placeholder="Enter video url" />
-<button type="button" @onclick="Search">Search</button>
+<div class="searchBox">
+    <MudTextField @bind-Value="videoUrl" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Secondary" />
+<MudButton @onclick="Search" Variant="Variant.Filled" Color="Color.Primary">
+    <MudIcon Icon="@Icons.Material.Filled.Search" Title="Search" />
+</MudButton>
+</div>
 
 @if (video != null)
 {
@@ -33,7 +51,7 @@
 
 @if (streamManifest != null)
 {
-    <h4>Muxed Streams:</h4>
+    <h4>Video:</h4>
     <ul>
         @foreach (var stream in streamManifest.GetMuxedStreams())
         {
@@ -46,7 +64,7 @@
     </ul>
 
 
-    <h4>Audio Only:</h4>
+    <h4>Audio :</h4>
      <ul>
         @foreach (var stream in streamManifest.GetAudioStreams())
         {
@@ -69,11 +87,7 @@
     StreamManifest? streamManifest = null;
     string msg = "";
 
-    // protected override async Task OnInitializedAsync()
-    // {
-    //     // Call the DownloadVideo method when the page loads
-    // }
-
+  
     private async Task Search()
     {
         try
@@ -108,7 +122,6 @@
             string invalidChars = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
              string filename = new string(video?.Title.Select(c => invalidChars.Contains(c) ? '_' : c).ToArray());
             string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"{filename}.{streamInfo.Container.Name}");
-            // var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"video.{streamInfo.Container}");
 
             // Download the stream to a file//
             await youtube.Videos.Streams.DownloadAsync(streamInfo, filePath);
