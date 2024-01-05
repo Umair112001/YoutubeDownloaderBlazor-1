@@ -5,77 +5,104 @@
 @page "/"
 @rendermode InteractiveServer
 
-<PageTitle>📺 Youtube Downloader</PageTitle>
-
-<style>
-    .header {
-        padding: 10px 0px;
-    }
-
-    .searchBox {
-        width: 100%;
-        display: flex;
-        gap: 20px;
-        padding: 5px 10px;
-    }
-</style>
-
-<div class="header">
+<PageTitle> 📺 Youtube Downloader</PageTitle>
+<div class="my-2">
 <MudText Typo="Typo.h5">Youtube Video Downloader</MudText>
 </div>
 
-
-@if (loading)
-{
-    <span>wait...</span>
-}
-
-<div class="searchBox">
+<div class="d-flex gap-4 my-2">
     <MudTextField @bind-Value="videoUrl" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Secondary" />
 <MudButton @onclick="Search" Variant="Variant.Filled" Color="Color.Primary">
-    <MudIcon Icon="@Icons.Material.Filled.Search" Title="Search" />
+    Search
 </MudButton>
 </div>
 
-@if (video != null)
+@if (loading)
 {
-    <ul>
-        <li>@video.Title (@video.Duration | @video.Author)</li>
-        <li><img src="@video.Thumbnails?.LastOrDefault()?.Url" style="width:300px;height:200px" /></li>
-        <li>Views: @video.Engagement.ViewCount</li>
-        <li>Likes: @video.Engagement.LikeCount</li>
-    </ul>
-
-
+    <MudProgressCircular Color="Color.Primary" Style="height:70px;width:70px;" Indeterminate="true" />
 }
 
-@if (streamManifest != null)
+@if (!downloading) {
+    @if (video != null)
+    {
+    <MudCard >
+    <MudCardContent>
+       
+                <MudText Typo="Typo.h6">
+                @video.Title (@video.Duration | @video.Author)
+            </MudText>
+
+            <MudImage Src="@video.Thumbnails?.LastOrDefault()?.Url" Width="300" Height="200" />
+
+                <MudText Typo="Typo.body2" Class="d-flex align-center gap-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Visibility" Class="icon" />
+                    @video.Engagement.ViewCount
+            </MudText>
+             
+                <MudText Typo="Typo.body2" Class="d-flex align-center gap-2">
+                    <MudIcon Icon="@Icons.Material.Filled.ThumbUp" Class="icon" />
+                     @video.Engagement.LikeCount
+            </MudText>
+    </MudCardContent>
+</MudCard>
+    }
+
+
+    @if (streamManifest != null)
+    {
+        <div class="download-options">
+          <div class="video">
+           <MudText Typo="Typo.h6" Class="my-2">Video options:</MudText>
+           <MudCard Class="stream-card">
+            <MudCardContent>
+                <ul class="stream-list">
+                    @foreach (var stream in streamManifest.GetMuxedStreams())
+                    {
+                        <li class="stream-item">
+                            <span class="stream-info">
+                                @stream.VideoQuality.Label | @stream.Container.Name | @(Math.Round(stream.Size.MegaBytes, 2)) MB
+                            </span>
+                            <MudButton Variant="Variant.Text" Color="Color.Info" OnClick="()=>DownloadVideo(stream)">
+                                <MudIcon Icon="@Icons.Material.Filled.Download" Class="icon" />
+                                Download
+                            </MudButton>
+                        </li>
+                    }
+                </ul>
+            </MudCardContent>
+        </MudCard>
+          </div>
+          <div class="audio">
+
+             <MudText Typo="Typo.h6" Class="my-2">Audio options:</MudText>
+        <MudCard Class="stream-card">
+            <MudCardContent>
+                <ul class="stream-list">
+                    @foreach (var stream in streamManifest.GetAudioStreams())
+                    {
+                        <li>
+                            @stream.Container.Name
+                            | @(Math.Ceiling(stream.Bitrate.KiloBitsPerSecond)) kbps
+                            | @(Math.Round(stream.Size.MegaBytes, 2)) MB
+                            | <MudButton Variant="Variant.Text" Color="Color.Info" OnClick="()=>DownloadVideo(stream)">
+                                <MudIcon Icon="@Icons.Material.Filled.Download" Class="icon" />
+                                Download
+                            </MudButton>
+                        </li>
+                    }
+                </ul>
+            </MudCardContent>
+        </MudCard>
+           </div>
+        </div>
+
+       
+       
+    }
+}
+else
 {
-    <h4>Video:</h4>
-    <ul>
-        @foreach (var stream in streamManifest.GetMuxedStreams())
-        {
-            <li>
-                @stream.Container.Name | @stream,.VideoQuality.Label |   @(Math.Round(stream.Size.MegaBytes,2)) MB
-                <button @onclick="()=>DownloadVideo(stream)">Download</button>
-
-            </li>
-        }
-    </ul>
-
-
-    <h4>Audio :</h4>
-     <ul>
-        @foreach (var stream in streamManifest.GetAudioStreams())
-        {
-            <li>
-                @stream.Container.Name
-                |@(Math.Ceiling(stream.Bitrate.KiloBitsPerSecond)) kbps
-               | @(Math.Round(stream.Size.MegaBytes,2)) MB
-                | <button @onclick="()=>DownloadVideo(stream)">Download</button>
-                </li>
-        }
-    </ul>
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
 }
 
 
@@ -83,6 +110,7 @@
     /* https://www.youtube.com/watch?v=8yP6OE4jDEw */
     string videoUrl = "https://www.youtube.com/watch?v=8yP6OE4jDEw";
     bool loading = false;
+    bool downloading = false;
     Video? video = null;
     StreamManifest? streamManifest = null;
     string msg = "";
@@ -111,7 +139,7 @@
     {
         try
         {
-            loading = true;
+            downloading = true;
 
             var youtube = new YoutubeClient();
             var streamManifest = await youtube.Videos.Streams.GetManifestAsync(videoUrl);
@@ -134,7 +162,7 @@
         finally
         {
             //finally
-            loading = false;
+            downloading = false;
         }
     }
 }
