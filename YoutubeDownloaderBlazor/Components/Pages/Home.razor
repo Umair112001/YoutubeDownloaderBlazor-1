@@ -4,8 +4,11 @@
 
 @page "/"
 @rendermode InteractiveServer
+@inject ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
 
-<PageTitle> 📺 Youtube Downloader</PageTitle>
+<PageTitle>📺 Youtube Downloader</PageTitle>
+
 <div class="my-2">
 <MudText Typo="Typo.h5">Youtube Video Downloader</MudText>
 </div>
@@ -19,7 +22,7 @@
 
 @if (loading)
 {
-    <MudProgressCircular Color="Color.Primary" Style="height:70px;width:70px;" Indeterminate="true" />
+    <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-7" />
 }
 
 @if (!downloading) {
@@ -95,9 +98,6 @@
         </MudCard>
            </div>
         </div>
-
-       
-       
     }
 }
 else
@@ -107,15 +107,12 @@ else
 
 
 @code {
-    /* https://www.youtube.com/watch?v=8yP6OE4jDEw */
-    string videoUrl = "https://www.youtube.com/watch?v=8yP6OE4jDEw";
+    string videoUrl = "";
     bool loading = false;
     bool downloading = false;
     Video? video = null;
     StreamManifest? streamManifest = null;
-    string msg = "";
 
-  
     private async Task Search()
     {
         try
@@ -127,7 +124,7 @@ else
         }
         catch (Exception ex)
         {
-            msg = "Download to search video";
+            Snackbar.Add("Error on searching video", Severity.Error);
         }
         finally
         {
@@ -146,22 +143,25 @@ else
             // Get the actual stream
             var stream = await youtube.Videos.Streams.GetAsync(streamInfo);
 
-            // Download the stream to a file
             string invalidChars = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
-             string filename = new string(video?.Title.Select(c => invalidChars.Contains(c) ? '_' : c).ToArray());
-            string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), $"{filename}.{streamInfo.Container.Name}");
-
+            //remove invalid character from file
+            string filename = new string(video?.Title.Select(c => invalidChars.Contains(c) ? '_' : c).ToArray());
+            string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"Downloads", $"{filename}.{streamInfo.Container.Name}");
+          
             // Download the stream to a file//
             await youtube.Videos.Streams.DownloadAsync(streamInfo, filePath);
-            msg = "Downloaded";
+           // Snackbar.Add("Downloaded successfully to downloads folder", Severity.Success);
+
+           //It is temperory, since snackbar is not working here
+            await JsRuntime.InvokeVoidAsync("alert","Downloaded successfully to downloads folder");
         }
         catch (Exception ex)
         {
-            msg = "Download failed";
+            //Snackbar.Add("Download failed", Severity.Error);
+            await JsRuntime.InvokeVoidAsync("alert","Download failed");
         }
         finally
         {
-            //finally
             downloading = false;
         }
     }

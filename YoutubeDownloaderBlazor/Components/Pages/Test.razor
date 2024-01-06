@@ -1,0 +1,17 @@
+﻿@page "/test"
+@rendermode InteractiveServer
+
+@inject ISnackbar Snackbar
+<h3>Test</h3>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="OpenSnackbar">
+    Open Snackbar
+</MudButton>
+@code {
+    void OpenSnackbar()
+    {
+        Console.WriteLine("hahahah");
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+        Snackbar.Add("Simple Snackbar");
+    }
+}
