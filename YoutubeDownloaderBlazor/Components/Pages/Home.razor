@@ -1,4 +1,5 @@
 ﻿@using YoutubeExplode;
+@using YoutubeExplode.Converter
 @using YoutubeExplode.Videos
 @using YoutubeExplode.Videos.Streams;
 
@@ -81,7 +82,7 @@
                                     <span class="stream-info">
                                         @maxVideoStream.VideoQuality.Label |  @maxVideoStream.Container.Name | @(Math.Round(maxVideoStream.Size.MegaBytes, 2)) MB
                                     </span>
-                                    <MudButton Variant="Variant.Text" Color="Color.Info" OnClick="()=>DownloadVideo(maxVideoStream)">
+                                    <MudButton Variant="Variant.Text" Color="Color.Info" OnClick="()=>DownloadHdVideo(maxVideoStream)">
                                         <MudIcon Icon="@Icons.Material.Filled.Download" Class="icon" />
                                         Download
                                     </MudButton>
@@ -168,6 +169,49 @@ else
 
             // Download the stream to a file//
             await youtube.Videos.Streams.DownloadAsync(streamInfo, filePath);
+            // Snackbar.Add("Downloaded successfully to downloads folder", Severity.Success);
+
+            //It is temperory, since snackbar is not working here
+            await JsRuntime.InvokeVoidAsync("alert", "Downloaded successfully to downloads folder");
+        }
+        catch (Exception ex)
+        {
+            //Snackbar.Add("Download failed", Severity.Error);
+            await JsRuntime.InvokeVoidAsync("alert", "Download failed");
+        }
+        finally
+        {
+            downloading = false;
+        }
+    }
+
+    async Task DownloadHdVideo(IVideoStreamInfo videoStreamInfo)
+    {
+        try
+        {
+            downloading = true;
+
+            var youtube = new YoutubeClient();
+            var streamManifest = await youtube.Videos.Streams.GetManifestAsync(videoUrl);
+            // Get the actual stream
+            var stream = await youtube.Videos.Streams.GetAsync(videoStreamInfo);
+
+            string invalidChars = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
+            //remove invalid character from file
+            string filename = new string(video?.Title.Select(c => invalidChars.Contains(c) ? '_' : c).ToArray());
+            string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", $"{filename}.mp4");
+
+            // Select best audio stream (highest bitrate)
+            var audioStreamInfo = streamManifest
+                .GetAudioStreams()
+                .Where(s => s.Container == Container.Mp4)
+                .GetWithHighestBitrate();
+
+            // Download and mux streams into a single file
+            var streamInfos = new IStreamInfo[] { audioStreamInfo, videoStreamInfo };
+
+            // Download the stream to a file//
+            await youtube.Videos.DownloadAsync(streamInfos, new ConversionRequestBuilder(filePath).Build());
             // Snackbar.Add("Downloaded successfully to downloads folder", Severity.Success);
 
             //It is temperory, since snackbar is not working here
