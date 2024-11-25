@@ -1,6 +1,6 @@
-﻿@using YoutubeExplode;
-@using YoutubeExplode.Converter
-@using YoutubeExplode.Videos
+@using YoutubeExplode;
+@using YoutubeExplode.Converter;
+@using YoutubeExplode.Videos;
 @using YoutubeExplode.Videos.Streams;
 
 @page "/"
@@ -15,7 +15,7 @@
 </div>
 
 <div class="d-flex gap-4 my-2">
-    <MudTextField @bind-Value="videoUrl" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Secondary" />
+    <MudTextField @bind-Value="videoUrl" Label="Enter YouTube URL" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Secondary" />
     <MudButton @onclick="Search" Variant="Variant.Filled" Color="Color.Primary">
         Search
     </MudButton>
@@ -25,125 +25,155 @@
 {
     <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-7" />
 }
-
-@if (!downloading)
+else if (video == null)
 {
-    @if (video != null)
+    <MudText Typo="Typo.body1" Class="my-2">No video found. Please check the URL and try again.</MudText>
+}
+else
+{
+    <MudCard>
+        <MudCardContent>
+            <MudText Typo="Typo.h6">@video.Title (@video.Author)</MudText>
+            <MudImage Src="@video.Thumbnails?.LastOrDefault()?.Url" Width="300" Height="200" />
+            <MudText Typo="Typo.body2">@video.Engagement.ViewCount views</MudText>
+            <MudText Typo="Typo.body2">@video.Duration</MudText>
+        </MudCardContent>
+    </MudCard>
+
+    @if (streamManifest == null || (!streamManifest.GetMuxedStreams().Any() && !streamManifest.GetAudioStreams().Any()))
     {
-        <MudCard>
-            <MudCardContent>
-
-                <MudText Typo="Typo.h6">
-                    @video.Title (@video.Duration | @video.Author)
-                </MudText>
-
-                <MudImage Src="@video.Thumbnails?.LastOrDefault()?.Url" Width="300" Height="200" />
-
-                <MudText Typo="Typo.body2" Class="d-flex align-center gap-2">
-                    <MudIcon Icon="@Icons.Material.Filled.Visibility" Class="icon" />
-                    @video.Engagement.ViewCount
-                </MudText>
-
-                <MudText Typo="Typo.body2" Class="d-flex align-center gap-2">
-                    <MudIcon Icon="@Icons.Material.Filled.ThumbUp" Class="icon" />
-                    @video.Engagement.LikeCount
-                </MudText>
-            </MudCardContent>
-        </MudCard>
+        <MudText Typo="Typo.body1" Class="my-2">No downloadable streams found for this video.</MudText>
     }
-
-
-    @if (streamManifest != null)
+    else
     {
         <div class="download-options">
-            <div class="video">
-                <MudText Typo="Typo.h6" Class="my-2">Video options:</MudText>
-                <MudCard Class="stream-card">
+            <MudText Typo="Typo.h6" Class="my-2">Download Options:</MudText>
+
+            <!-- Muxed Streams -->
+            @if (streamManifest.GetMuxedStreams().Any())
+            {
+                <MudCard>
                     <MudCardContent>
+                        <MudText Typo="Typo.subtitle1">Muxed Streams (Video + Audio)</MudText>
                         <ul class="stream-list">
-                           
                             @foreach (var stream in streamManifest.GetMuxedStreams())
                             {
-                                <li class="stream-item">
-                                    <span class="stream-info">
-                                        @stream.VideoQuality.Label | @stream.Container.Name | @(Math.Round(stream.Size.MegaBytes, 2)) MB
-                                    </span>
+                                <li>
+                                    @stream.VideoQuality.Label | @stream.Container.Name | @(Math.Round(stream.Size.MegaBytes, 2)) MB
                                     <MudButton Variant="Variant.Text" Color="Color.Info" OnClick="()=>DownloadVideo(stream)">
-                                        <MudIcon Icon="@Icons.Material.Filled.Download" Class="icon" />
-                                        Download
+                                        <MudIcon Icon="@Icons.Material.Filled.Download" /> Download
                                     </MudButton>
                                 </li>
                             }
-
-                            @* Displaying hd video info *@
-                            @if (maxVideoStream != null)
+                            @foreach (var videoStream in streamManifest.GetVideoStreams())
                             {
-                                <li class="stream-item">
-                                    <span class="stream-info">
-                                        @maxVideoStream.VideoQuality.Label |  @maxVideoStream.Container.Name | @(Math.Round(maxVideoStream.Size.MegaBytes, 2)) MB
-                                    </span>
-                                    <MudButton Variant="Variant.Text" Color="Color.Info" OnClick="()=>DownloadHdVideo(maxVideoStream)">
-                                        <MudIcon Icon="@Icons.Material.Filled.Download" Class="icon" />
-                                        Download
+                                <li>
+                                    @videoStream.VideoQuality.Label | @videoStream.Container.Name (Video only) | @(Math.Round(videoStream.Size.MegaBytes, 2)) MB
+                                    <MudButton Variant="Variant.Text" Color="Color.Info" OnClick="()=>DownloadVideo(videoStream)">
+                                        <MudIcon Icon="@Icons.Material.Filled.Download" /> Download Video + Audio
+                                    </MudButton>
+                                </li>
+                            }
+                        </ul>
+
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            <!-- Video-only Streams -->
+            @if (streamManifest.GetVideoStreams().Any())
+            {
+                <MudCard>
+                    <MudCardContent>
+                        <MudText Typo="Typo.subtitle1">Video-only Streams</MudText>
+                        <ul class="stream-list">
+                            @foreach (var stream in streamManifest.GetVideoStreams())
+                            {
+                                <li>
+                                    @stream.VideoQuality.Label | @stream.Container.Name | @(Math.Round(stream.Size.MegaBytes, 2)) MB
+                                    <MudButton Variant="Variant.Text" Color="Color.Info" OnClick="()=>DownloadVideo(stream)">
+                                        <MudIcon Icon="@Icons.Material.Filled.Download" /> Download
                                     </MudButton>
                                 </li>
                             }
                         </ul>
                     </MudCardContent>
                 </MudCard>
-            </div>
-           
-            <div class="audio">
+            }
 
-                <MudText Typo="Typo.h6" Class="my-2">Audio options:</MudText>
-                <MudCard Class="stream-card">
+            <!-- Audio-only Streams -->
+            @if (streamManifest.GetAudioStreams().Any())
+            {
+                <MudCard>
                     <MudCardContent>
+                        <MudText Typo="Typo.subtitle1">Audio-only Streams</MudText>
                         <ul class="stream-list">
                             @foreach (var stream in streamManifest.GetAudioStreams())
                             {
                                 <li>
-                                    @stream.Container.Name
-                                    | @(Math.Ceiling(stream.Bitrate.KiloBitsPerSecond)) kbps
-                                    | @(Math.Round(stream.Size.MegaBytes, 2)) MB
-                                    | <MudButton Variant="Variant.Text" Color="Color.Info" OnClick="()=>DownloadVideo(stream)">
-                                        <MudIcon Icon="@Icons.Material.Filled.Download" Class="icon" />
-                                        Download
+                                    @stream.Container.Name | @(Math.Ceiling(stream.Bitrate.KiloBitsPerSecond)) kbps | @(Math.Round(stream.Size.MegaBytes, 2)) MB
+                                    <MudButton Variant="Variant.Text" Color="Color.Info" OnClick="()=>DownloadVideo(stream)">
+                                        <MudIcon Icon="@Icons.Material.Filled.Download" /> Download
                                     </MudButton>
                                 </li>
                             }
                         </ul>
                     </MudCardContent>
                 </MudCard>
-            </div>
+            }
         </div>
-    }
 }
-else
+}
+@if (downloading)
 {
     <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
 }
 
-
 @code {
-    string videoUrl = "https://www.youtube.com/watch?v=e-ORhEE9VVg";
+    string videoUrl = "";
     bool loading = false;
     bool downloading = false;
     Video? video = null;
     StreamManifest? streamManifest = null;
     IVideoStreamInfo? maxVideoStream = null;
+
     private async Task Search()
     {
         try
         {
             loading = true;
             var youtube = new YoutubeClient();
+
+            // Fetch video details
             video = await youtube.Videos.GetAsync(videoUrl);
+            Snackbar.Add($"Video found: {video.Title} by {video.Author}", Severity.Success);
+
+            // Get stream manifest
             streamManifest = await youtube.Videos.Streams.GetManifestAsync(videoUrl);
-            maxVideoStream = streamManifest.GetVideoStreams().Where(s => s.Container == Container.Mp4).FirstOrDefault(s => s.VideoQuality.Label.Contains("1080"));
+
+            if (streamManifest == null)
+            {
+                Snackbar.Add("StreamManifest is null. Unable to fetch streams.", Severity.Error);
+                return;
+            }
+
+            // Get all streams
+            var muxedStreams = streamManifest.GetMuxedStreams().OrderByDescending(s => s.VideoQuality);
+            var videoStreams = streamManifest.GetVideoStreams().OrderByDescending(s => s.VideoQuality);
+            var audioStreams = streamManifest.GetAudioStreams().OrderByDescending(s => s.Bitrate);
+
+            if (!muxedStreams.Any() && !videoStreams.Any() && !audioStreams.Any())
+            {
+                Snackbar.Add("No downloadable streams found. This may be due to restrictions or unsupported formats.", Severity.Warning);
+            }
+            else
+            {
+                Snackbar.Add($"Streams found: {muxedStreams.Count()} muxed streams, {videoStreams.Count()} video streams, {audioStreams.Count()} audio streams.", Severity.Success);
+            }
         }
         catch (Exception ex)
         {
-            Snackbar.Add("Error on searching video", Severity.Error);
+            Snackbar.Add($"Error fetching video: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -151,76 +181,55 @@ else
         }
     }
 
-    async Task DownloadVideo(IStreamInfo streamInfo)
+
+
+    private async Task DownloadVideo(IStreamInfo videoStreamInfo)
     {
         try
         {
             downloading = true;
-
             var youtube = new YoutubeClient();
-            var streamManifest = await youtube.Videos.Streams.GetManifestAsync(videoUrl);
-            // Get the actual stream
-            var stream = await youtube.Videos.Streams.GetAsync(streamInfo);
 
-            string invalidChars = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
-            //remove invalid character from file
-            string filename = new string(video?.Title.Select(c => invalidChars.Contains(c) ? '_' : c).ToArray());
-            string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", $"{filename}.{streamInfo.Container.Name}");
+            string fileName = new string(video?.Title.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c).ToArray());
+            string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", $"{fileName}.mp4");
 
-            // Download the stream to a file//
-            await youtube.Videos.Streams.DownloadAsync(streamInfo, filePath);
-            // Snackbar.Add("Downloaded successfully to downloads folder", Severity.Success);
+            // Get the highest-bitrate audio stream
+            var audioStream = streamManifest.GetAudioStreams().GetWithHighestBitrate();
 
-            //It is temperory, since snackbar is not working here
-            await JsRuntime.InvokeVoidAsync("alert", "Downloaded successfully to downloads folder");
+            // Combine video and audio streams and download
+            await youtube.Videos.DownloadAsync(new[] { videoStreamInfo, audioStream }, new ConversionRequestBuilder(filePath).Build());
+            await JsRuntime.InvokeVoidAsync("alert", "Download successful with audio!");
         }
         catch (Exception ex)
         {
-            //Snackbar.Add("Download failed", Severity.Error);
-            await JsRuntime.InvokeVoidAsync("alert", "Download failed");
+            await JsRuntime.InvokeVoidAsync("alert", $"Download failed: {ex.Message}");
         }
         finally
         {
             downloading = false;
         }
     }
+    
 
-    async Task DownloadHdVideo(IVideoStreamInfo videoStreamInfo)
+    private async Task DownloadHdVideo(IVideoStreamInfo videoStreamInfo)
     {
         try
         {
             downloading = true;
-
             var youtube = new YoutubeClient();
-            var streamManifest = await youtube.Videos.Streams.GetManifestAsync(videoUrl);
-            // Get the actual stream
-            var stream = await youtube.Videos.Streams.GetAsync(videoStreamInfo);
 
-            string invalidChars = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
-            //remove invalid character from file
-            string filename = new string(video?.Title.Select(c => invalidChars.Contains(c) ? '_' : c).ToArray());
-            string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", $"{filename}.mp4");
+            string fileName = new string(video?.Title.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c).ToArray());
+            string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", $"{fileName}.mp4");
 
-            // Select best audio stream (highest bitrate)
-            var audioStreamInfo = streamManifest
-                .GetAudioStreams()
-                .Where(s => s.Container == Container.Mp4)
-                .GetWithHighestBitrate();
+            var audioStream = streamManifest.GetAudioStreams().GetWithHighestBitrate();
+            var streams = new[] { videoStreamInfo, audioStream };
 
-            // Download and mux streams into a single file
-            var streamInfos = new IStreamInfo[] { audioStreamInfo, videoStreamInfo };
-
-            // Download the stream to a file//
-            await youtube.Videos.DownloadAsync(streamInfos, new ConversionRequestBuilder(filePath).Build());
-            // Snackbar.Add("Downloaded successfully to downloads folder", Severity.Success);
-
-            //It is temperory, since snackbar is not working here
-            await JsRuntime.InvokeVoidAsync("alert", "Downloaded successfully to downloads folder");
+            await youtube.Videos.DownloadAsync(streams, new ConversionRequestBuilder(filePath).Build());
+            await JsRuntime.InvokeVoidAsync("alert", "HD Video downloaded successfully!");
         }
         catch (Exception ex)
         {
-            //Snackbar.Add("Download failed", Severity.Error);
-            await JsRuntime.InvokeVoidAsync("alert", "Download failed");
+            await JsRuntime.InvokeVoidAsync("alert", $"HD Download failed: {ex.Message}");
         }
         finally
         {
